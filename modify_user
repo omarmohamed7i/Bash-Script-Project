@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Prompt to enter the username
+EXISTING_USERNAME=$(whiptail --cancel-button "Exit"  --inputbox "Enter username:" 8 39 "" --title "Modify User" 3>&1 1>&2 2>&3)
+if [ $? != 0 ]; then exit 0; fi
+
+# Check if the user exists
+if id "$EXISTING_USERNAME" >/dev/null 2>&1; then
+  while true; do 
+    # Menu to select the action to perform
+    OPTION=$(whiptail --cancel-button "Exit" --menu "Select an option:" 15 60 8 \
+        "1" "Change username" \
+        "2" "Change UID" \
+        "3" "Change password" \
+        "4" "Change home directory" \
+        "5" "Exit" \
+         3>&1 1>&2 2>&3)
+         
+    if [ $? != 0 ]; then break; fi
+
+    case $OPTION in
+        "1")
+            NEW_USERNAME=$(whiptail --cancel-button "Exit" --inputbox "Enter new username:" 8 60 --title "Change username" 3>&1 1>&2 2>&3)
+            if [ $? != 0 ]; then continue; fi
+            usermod -l $NEW_USERNAME $EXISTING_USERNAME && EXISTING_USERNAME=$NEW_USERNAME
+            whiptail --msgbox "User name changed to $NEW_USERNAME." 8 40 --title "Change User Name"
+            ;;
+        "2")
+            uid=$(whiptail --cancel-button "Exit" --inputbox "Enter new UID:" 8 39 "" --title "Modify User" 3>&1 1>&2 2>&3)
+            if [ $? != 0 ]; then continue; fi
+            usermod -u ${uid} $EXISTING_USERNAME
+            whiptail --msgbox "UID changed to $uid" 8 40 --title "Change UID"
+            ;;
+        "3")
+            NEW_PASSWORD=$(whiptail --cancel-button "Exit" --passwordbox "Enter new password:" 8 60 --title "Change password" 3>&1 1>&2 2>&3)
+            if [ $? != 0 ]; then continue; fi
+            echo -e "$NEW_PASSWORD\n$NEW_PASSWORD" | passwd $EXISTING_USERNAME &>/dev/null
+            whiptail --msgbox "$EXISTING_USERNAME password changed successfully" 8 40 --title "Change password"
+            ;;
+        "4")
+            NEW_HOME=$(whiptail --cancel-button "Exit" --inputbox "Enter new home directory:" 8 60 --title "Change home directory" 3>&1 1>&2 2>&3)
+            if [ $? != 0 ]; then continue; fi
+            usermod -d $NEW_HOME $EXISTING_USERNAME
+            whiptail --msgbox "Home dir changed to $NEW_HOME" 8 40 --title "Change Home Directory"
+            ;;
+        "8")
+            groups=$(id -Gn ${EXISTING_USERNAME} | tr " " ",")
+            new_g=$(whiptail --cancel-button "Exit" --inputbox "Enter user groups (comma-separated):" 8 39 "${groups}" --title "Modify User" 3>&1 1>&2 2>&3)        
+            if [ $? != 0 ]; then continue; fi
+            usermod -G $new_g $EXISTING_USERNAME
+            whiptail --msgbox "Groups updated to $new_g." 8 40 --title "Update Groups"
+            ;;
+        "6")
+            comment=$(whiptail --cancel-button "Exit" --inputbox "Enter Comment:" 8 39 "" --title "Modify User" 3>&1 1>&2 2>&3)
+            if [ $? != 0 ]; then continue; fi
+            usermod -c "$comment" $EXISTING_USERNAME
+            whiptail --msgbox "$EXISTING_USERNAME comment has been added successfully" 8 40 --title "Add Comment"
+            ;; 
+        "7")
+            CONFIRM=$(whiptail --yesno "Are you sure you want to delete user $EXISTING_USERNAME?" 8 60 --title "Confirm Delete" 3>&1 1>&2 2>&3)
+            if [ $? = 0 ]; then
+                userdel -r "$EXISTING_USERNAME"
+                whiptail --msgbox "USER $EXISTING_USERNAME deleted." 8 40 --title "Delete User"
+                break
+            fi
+            ;;
+        "5")
+            break
+            ;;
+    esac
+  done
+else
+  whiptail --msgbox "User $EXISTING_USERNAME does not exist." 8 40 --title "Modify User"
+fi
+
